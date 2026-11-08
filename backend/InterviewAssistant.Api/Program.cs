@@ -17,6 +17,7 @@ builder.Services.AddHttpClient<DeepSeekClient>(c =>
     c.Timeout = TimeSpan.FromSeconds(90);
 });
 builder.Services.AddScoped<ResumeParser>();
+builder.Services.AddScoped<JdParser>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
