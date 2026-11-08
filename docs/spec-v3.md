@@ -83,14 +83,14 @@ j:resp:2   JD 第 2 条职责
 
 ## 6. 追问策略表（R3）
 
-**下一步做什么由代码决定，模型只负责措辞。** 每题深度上限 2。
+**下一步做什么由代码决定，模型只负责措辞。** 每题深度上限 **1**：`questions` 表只存一个 `FollowUp`，二次追问需要新增存储，当前不做。
 
 | 条件（按顺序命中） | 动作 |
 |---|---|
 | 已答满 8 题 | `complete` |
-| 有事实错误，或 `correctness ≤ 1` | 深度 < 2 → `prerequisite`（降难度问前置知识）；否则 `advance` |
-| 存在 `contradicted` 声明 | 深度 < 2 → `follow_up(verification)` |
-| `specificity ≤ 2`（无细节/无量化） | 深度 < 2 → `follow_up(metrics)` |
+| 有事实错误，或 `correctness ≤ 1` | 深度 < 1 → `prerequisite`（降难度问前置知识）；否则 `advance` |
+| 存在 `contradicted` 声明 | 深度 < 1 → `follow_up(verification)` |
+| `specificity ≤ 2`（无细节/无量化） | 深度 < 1 → `follow_up(metrics)` |
 | 缺口题且深度 < 1 | `follow_up(boundary)`：问边界与失效场景 |
 | 其余 | `advance`（下一题） |
 

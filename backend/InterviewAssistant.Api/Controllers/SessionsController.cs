@@ -2,6 +2,7 @@ using System.Text.Json;
 using InterviewAssistant.Api.Data;
 using InterviewAssistant.Api.Models;
 using InterviewAssistant.Api.Services;
+using InterviewAssistant.Api.Services.Interview;
 using InterviewAssistant.Api.Services.Llm;
 using InterviewAssistant.Api.Services.Match;
 using InterviewAssistant.Api.Services.Questions;
@@ -12,17 +13,29 @@ namespace InterviewAssistant.Api.Controllers;
 
 public sealed record CreateSessionRequest(Guid ResumeId, Guid JobTargetId);
 
+public sealed record SubmitAnswerRequest(string? Answer);
+
 public sealed record SessionQuestionDto(Guid Id, int Ordinal, string Type, string Source, string Content, string Intent, List<string> AnchorIds);
 
 public sealed record SessionResponse(
     Guid Id, Guid ResumeId, Guid JobTargetId, Guid MatchId, string Status,
     DateTime StartedAt, MatchResult Match, List<SessionQuestionDto> Questions);
 
+public sealed record AnswerResponse(
+    string Action, string? FollowUp, bool FollowUpFallback, Assessment Assessment, SessionQuestionDto? NextQuestion);
+
 [ApiController]
 [Route("api/sessions")]
 [Produces("application/json")]
-public class SessionsController(AppDbContext db, MatchStore matchStore, QuestionGenerator generator, ILogger<SessionsController> log) : ControllerBase
+public class SessionsController(
+    AppDbContext db,
+    MatchStore matchStore,
+    QuestionGenerator generator,
+    InterviewService interview,
+    ILogger<SessionsController> log) : ControllerBase
 {
+    private const int MinAnswerChars = 10;
+
     /// <summary>开始一场练习：复用或计算匹配结果，再按配比生成 8 道带证据锚点的题。</summary>
     [HttpPost]
     [ProducesResponseType(typeof(SessionResponse), StatusCodes.Status200OK)]
@@ -114,6 +127,223 @@ public class SessionsController(AppDbContext db, MatchStore matchStore, Question
 
         return Ok(ToResponse(session, matchResult, session.Questions.OrderBy(q => q.Ordinal).ToList()));
     }
+
+    /// <summary>提交一次作答：评估 + 策略决定「追问还是下一题」。</summary>
+    [HttpPost("{id:guid}/questions/{qid:guid}/answer")]
+    [ProducesResponseType(typeof(AnswerResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status502BadGateway)]
+    public async Task<IActionResult> SubmitAnswer(Guid id, Guid qid, [FromBody] SubmitAnswerRequest req, CancellationToken ct)
+    {
+        var answer = (req.Answer ?? string.Empty).Trim();
+        if (answer.Length < MinAnswerChars)
+            return BadRequest(new { error = $"回答太短，至少 {MinAnswerChars} 字" });
+
+        var session = await db.Sessions.Include(s => s.Questions).FirstOrDefaultAsync(s => s.Id == id, ct);
+        if (session is null) return NotFound(new { error = "会话不存在" });
+
+        var question = session.Questions.FirstOrDefault(q => q.Id == qid);
+        if (question is null) return NotFound(new { error = "题目不存在" });
+
+        if (question.Answer is not null) return Conflict(new { error = "这道题已经作答过" });
+
+        List<Anchor> anchors;
+        try
+        {
+            anchors = await LoadAnchorsAsync(session, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            log.LogError(ex, "读取会话锚点失败 session={SessionId}", id);
+            return StatusCode(StatusCodes.Status502BadGateway, new { error = "会话数据不完整，请重新开始" });
+        }
+
+        AssessOutcome outcome;
+        try
+        {
+            outcome = await interview.EvaluateAsync(
+                new InterviewContext(question.Content, question.Intent ?? "", question.Source.ToString(), 0, answer, anchors), ct);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            log.LogError(ex, "评估失败 session={SessionId} question={QuestionId}", id, qid);
+            return StatusCode(StatusCodes.Status502BadGateway, new { error = "评估失败，请稍后重试" });
+        }
+
+        question.Answer = answer;
+        try
+        {
+            await ApplyAssessmentAsync(question, outcome.Assessment, ct);
+            if (outcome.FollowUpText is not null) question.FollowUp = outcome.FollowUpText;
+            MarkCompleteIfDone(session);
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex)
+        {
+            // 并发提交同一道题：唯一键冲突，按冲突处理而不是 500
+            log.LogWarning(ex, "作答保存冲突 session={SessionId} question={QuestionId}", id, qid);
+            return Conflict(new { error = "这道题已经被提交过" });
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            log.LogError(ex, "作答保存失败 session={SessionId} question={QuestionId}", id, qid);
+            return StatusCode(StatusCodes.Status502BadGateway, new { error = "保存失败，请稍后重试" });
+        }
+
+        return Ok(new AnswerResponse(
+            outcome.Decision.Action,
+            outcome.FollowUpText,
+            outcome.FollowUpFallback,
+            outcome.Assessment,
+            outcome.FollowUpText is null ? NextQuestion(session, question) : null));
+    }
+
+    /// <summary>提交追问的回答，完成后推进下一题。</summary>
+    [HttpPost("{id:guid}/questions/{qid:guid}/followup")]
+    [ProducesResponseType(typeof(AnswerResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status502BadGateway)]
+    public async Task<IActionResult> SubmitFollowUp(Guid id, Guid qid, [FromBody] SubmitAnswerRequest req, CancellationToken ct)
+    {
+        var answer = (req.Answer ?? string.Empty).Trim();
+        if (answer.Length < MinAnswerChars)
+            return BadRequest(new { error = $"回答太短，至少 {MinAnswerChars} 字" });
+
+        var session = await db.Sessions.Include(s => s.Questions).FirstOrDefaultAsync(s => s.Id == id, ct);
+        if (session is null) return NotFound(new { error = "会话不存在" });
+
+        var question = session.Questions.FirstOrDefault(q => q.Id == qid);
+        if (question is null) return NotFound(new { error = "题目不存在" });
+
+        if (string.IsNullOrWhiteSpace(question.FollowUp)) return Conflict(new { error = "这道题没有追问" });
+        if (question.FollowUpAnswer is not null) return Conflict(new { error = "这道题的追问已经作答过" });
+
+        List<Anchor> anchors;
+        try
+        {
+            anchors = await LoadAnchorsAsync(session, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            log.LogError(ex, "读取会话锚点失败 session={SessionId}", id);
+            return StatusCode(StatusCodes.Status502BadGateway, new { error = "会话数据不完整，请重新开始" });
+        }
+
+        AssessOutcome outcome;
+        try
+        {
+            outcome = await interview.EvaluateAsync(
+                new InterviewContext(question.Content, question.Intent ?? "", question.Source.ToString(), 1, answer, anchors, question.FollowUp), ct);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            log.LogError(ex, "追问评估失败 session={SessionId} question={QuestionId}", id, qid);
+            return StatusCode(StatusCodes.Status502BadGateway, new { error = "评估失败，请稍后重试" });
+        }
+
+        question.FollowUpAnswer = answer;
+        try
+        {
+            await ApplyAssessmentAsync(question, outcome.Assessment, ct);
+            MarkCompleteIfDone(session);
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex)
+        {
+            log.LogWarning(ex, "追问保存冲突 session={SessionId} question={QuestionId}", id, qid);
+            return Conflict(new { error = "这道题的追问已经被提交过" });
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            log.LogError(ex, "追问保存失败 session={SessionId} question={QuestionId}", id, qid);
+            return StatusCode(StatusCodes.Status502BadGateway, new { error = "保存失败，请稍后重试" });
+        }
+
+        return Ok(new AnswerResponse(outcome.Decision.Action, null, outcome.FollowUpFallback, outcome.Assessment, NextQuestion(session, question)));
+    }
+
+    /// <summary>所有题都答完就把会话标记为完成（spec §6 的 complete 分支）。</summary>
+    private static void MarkCompleteIfDone(Session session)
+    {
+        if (session.Questions.Count == 0 || session.Questions.Any(q => q.Answer is null)) return;
+
+        session.Status = SessionStatus.completed;
+        session.CompletedAt = DateTime.UtcNow;
+    }
+
+    private async Task<List<Anchor>> LoadAnchorsAsync(Session session, CancellationToken ct)
+    {
+        var anchors = new List<Anchor>();
+
+        if (session.ResumeId is { } resumeId)
+        {
+            var resume = await db.Resumes.AsNoTracking().FirstOrDefaultAsync(r => r.Id == resumeId, ct);
+            if (resume is not null) anchors.AddRange(StoredParsed.ReadResume(resume.ParsedJson).Anchors);
+        }
+
+        var job = await db.JobTargets.AsNoTracking().FirstOrDefaultAsync(j => j.Id == session.JobTargetId, ct);
+        if (job is not null) anchors.AddRange(StoredParsed.ReadJob(job.ParsedJson).Anchors);
+
+        return anchors;
+    }
+
+    private async Task ApplyAssessmentAsync(Question question, Assessment assessment, CancellationToken ct)
+    {
+        assessment.Normalize();
+
+        question.AssessmentJson = JsonSerializer.Serialize(assessment, LlmJson.Options);
+        question.ClaimChecks = JsonSerializer.Serialize(assessment.ClaimChecks, LlmJson.Options);
+        question.Feedback = string.Join("；", assessment.Improvements);
+
+        var existing = await db.QuestionScores.Where(s => s.QuestionId == question.Id).ToListAsync(ct);
+        if (existing.Count > 0) db.QuestionScores.RemoveRange(existing);
+
+        (ScoreDimension Dimension, int Value)[] scores =
+        [
+            (ScoreDimension.structure, assessment.Display.Structure),
+            (ScoreDimension.depth, assessment.Display.Depth),
+            (ScoreDimension.evidence, assessment.Display.Evidence),
+            (ScoreDimension.delivery, assessment.Display.Delivery)
+        ];
+
+        foreach (var (dimension, value) in scores)
+        {
+            db.QuestionScores.Add(new QuestionScore
+            {
+                Id = Guid.NewGuid(),
+                QuestionId = question.Id,
+                Dimension = dimension,
+                Score = (byte)Math.Clamp(value, 1, 5)
+            });
+        }
+    }
+
+    private static SessionQuestionDto? NextQuestion(Session session, Question current) =>
+        session.Questions
+            .Where(q => q.Ordinal > current.Ordinal)
+            .OrderBy(q => q.Ordinal)
+            .Select(ToDto)
+            .FirstOrDefault();
 
     private static SessionResponse ToResponse(Session session, MatchResult match, List<Question> questions) =>
         new(session.Id,

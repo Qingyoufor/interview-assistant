@@ -56,6 +56,11 @@
 - 参考来源：OfferPilot（MIT）、agent-interview-coach（MIT）、resume-optimizer（MIT）。
 - spec 定稿于 `docs/spec-v3.md`。
 
+### 2026-11-08 追问深度降为 1
+- 结论：策略表每题最多追问一次（原 spec 写的 2 次）。
+- 理由：`questions` 表只有一个 `FollowUp` 字段，允许二次追问会出现「说要追问但没有追问文本」的状态；扩表不值得。
+- 影响：spec §6 已同步；解答 S5 审计 TEST-002。
+
 ## 待定问题
 
 - 无。产品、技术、验收参数全部闭合，grill 结束。
