@@ -74,3 +74,9 @@
 
 - 以 `docs/spec-v3.md` 为准执行。第一步：改 schema（新增 `resumes`，改 `sessions`/`questions`）。
 - 动工前需用户明确放行。
+
+### 2026-11-08 质量检查规范（写入 AGENTS.md）
+- 测试 / Code Review / 静态分析一律派子 Agent 执行，主 Agent 不自行执行，结果回传主 Agent。
+- 静态分析用 .NET 工具链：Roslyn 分析器（`dotnet build` 零 warning）+ `dotnet format --verify-no-changes`；
+  SonarQube 可选。Checkstyle / SpotBugs 为 Java 专属，不适用。
+- 新建 xunit 测试项目（`backend/Qy.Tests`）排在「JD 解析」功能一起做，质量检查自该功能起生效。
