@@ -45,9 +45,17 @@ public static class SessionMapper
     {
         if (string.IsNullOrWhiteSpace(json)) return null;
 
-        var assessment = JsonSerializer.Deserialize<Assessment>(json, LlmJson.Options);
-        assessment?.Normalize();
-        return assessment;
+        try
+        {
+            var assessment = JsonSerializer.Deserialize<Assessment>(json, LlmJson.Options);
+            assessment?.Normalize();
+            return assessment;
+        }
+        catch (JsonException)
+        {
+            // 手工改库或 schema 漂移留下的脏行，不能让它把整个统计/报告接口打 500
+            return null;
+        }
     }
 
     public static QuestionType ParseType(string value) =>

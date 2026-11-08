@@ -10,7 +10,7 @@ namespace InterviewAssistant.Api.Services.Report;
 /// </summary>
 public static class ReportBuilder
 {
-    private static readonly string[] Dimensions = ["structure", "depth", "evidence", "delivery"];
+    private static readonly string[] Dimensions = Enum.GetNames<ScoreDimension>();
     private static readonly Dictionary<string, string> DimensionLabels = new(StringComparer.Ordinal)
     {
         ["structure"] = "结构",

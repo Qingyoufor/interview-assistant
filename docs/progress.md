@@ -31,7 +31,7 @@
 | S4 | 出题（8 题，带来源与锚点） | ✅ | 实测 8 题按 plan 分配（5/1/2，随可出缺口数自适应）；gap 题只引用 missing 且原文命中的锚点；68 个单元测试 |
 | S5 | 作答 / 策略追问 / 评分 + 声明核验 | ✅ | 实测追问→推进、重复提交 409、展示分/弱点/声明核验落库；97 个单元测试 |
 | S6 | 报告（四维 + topRisks + 待补证据） | ✅ | `GET /report` 只读且要求已完成（半场返回 409）、`POST /complete` 才写回 `overall_score`/`summary`；实测总分 29、拆分 33+20+17+8=78；105 个单元测试 |
-| S7 | 弱点点统计 | ⬜ | — |
+| S7 | 弱点点统计 | ✅ | `GET /api/stats/weakness` 实测 11 道已评估题 / 4 场：技术深度 10 次(4 场)、量化结果 9 次(4 场)，与 SQL 直算逐条一致；25 标签恒定返回、缺数据补 0；四维均分与 `AVG(score)` 一致；插一行脏 `assessment_json` 后接口仍 200 且数字不变；120 个单元测试 |
 | S8 | 离线评测集（5 指标） | ⬜ | — |
 
 ## 前端切片
@@ -47,7 +47,7 @@
 
 | 项 | 状态 | 说明 |
 |---|---|---|
-| xunit 测试项目 | ✅ | 20 个用例，`pwsh scripts/test.ps1` |
+| xunit 测试项目 | ✅ | 120 个用例，`pwsh scripts/test.ps1` |
 | Roslyn 零 warning | ✅ | `dotnet build --no-incremental -warnaserror` = 0/0 |
 | `dotnet format` 校验 | ✅ | Api 与 Tests 均通过 |
 | 评测集 5 指标 | ⬜ | 排在 S8 |
@@ -63,6 +63,9 @@
 - **EF Core 9 跑在 net10 上**：EF Core 10 暂无 MySQL 提供程序（Pomelo 最新稳定版是 9.0.0），因此钉住 EF Core 9 + Pomelo 9；构建与运行均正常，等 provider 支持 10 再升。
 - **`sessions.overall_score` 是 0-100 的 TINYINT**：老库如果还是 `DECIMAL(3,2)`（最大 9.99），保存会报 out of range，需要手工 `ALTER TABLE sessions MODIFY overall_score TINYINT NULL;`。
 - **匹配缓存只按输入指纹失效**：不做 TTL；简历/JD 重新解析后指纹变化会自动重算，refresh=true 可强制重算。旧行不删除，每次重算新增一行（量小，可接受）。
+- **弱点统计含未完成场次**：`GET /api/stats/weakness` 按「已评估的题」聚合，所以没答完的场次也计入；接口里的 `sessions` 数与只对 completed 生成的报告总数对不齐。要看齐需 `JOIN sessions.status='completed'`，属产品口径调整。
+- **统计是两条全表扫 + 内存 join**：单机单用户、数据量小可接受；量大再下推成 SQL `GROUP BY tag`。
+- **脏 `assessment_json` 被静默跳过**：`SessionMapper.ParseAssessment` 捕获 `JsonException` 返回 null，不写日志，该题不计入统计；正常写入是强类型序列化 + JSON 列，脏行只可能来自手工改库或 schema 漂移。代价是问题不会被发现，收益是统计页不会整页 500。
 - **脱敏尚未实现**（spec §13）：调模型前应把姓名/手机号/邮箱/身份证替换掉，排在 S8 之前补，并加 `privacyMarkerHits` 用例。
 
 ## 怎么用
