@@ -1,6 +1,7 @@
 # 进度看板
 
 > **这是一张状态快照，不是计划。**
+> 切片定义与顺序见 `docs/spec-v3.md` §17；本表只记录状态，不定义切片。
 > 计划在 `docs/spec-v3.md`（做什么）和 `docs/decisions-project-selection.md`（为什么这么定）。
 > 这张表只回答一个问题：现在做到哪了。
 

@@ -37,24 +37,15 @@
 - 技术栈：前端 Vue 3，后端 ASP.NET Core Web API。
 - 部署：项目完成后再做。
 
-### 2026-11-08 MVP 边界（草案）
-- 一条主流程：粘贴 JD → AI 抽取岗位 → 生成题目 → 作答 → 追问 → 四维评分 → 报告 → 弱点统计。
-- 不做：爬取 JD、语音、多租户、社交分享、付费。
-
-### 2026-11-08 范围变更（v2）
-- 核心输入改为「个人简历 + 岗位 JD」；只做 JD 的 v1 作废，`docs/design-mvp.md` 仅留档。
-- 部署移出范围，由用户自行解决。
-- 流程改为：先写完 spec 并确认，再写代码。
-- 已落地但将被 v2 覆盖：`db/schema.sql`（四表）、`backend/Qy.Api` 骨架（.NET 10 +
-  EF Core 9 + Pomelo 9，`/health` 已连通 MySQL）。
-- v2 需要新增 `resumes` 表，并给 `sessions` 加 `resume_id`、给 `questions` 加
-  `source` / `ref_key`；重建 `qy_dev` 即可（当前无数据）。
+### 2026-11-08 范围演进（v1 → v2）
+- 核心输入从「只有 JD」改为「个人简历 + 岗位 JD」；v1 的设计文档已删除。
+- 部署移出范围，由用户自行解决；流程改为先定稿 spec 再写代码。
 
 ### 2026-11-08 参数确认（最后一轮）
 - 简历录入：粘贴文本 + PDF 上传（前端 pdfjs 抽文本，后端只收纯文本）。
 - 报告：不做全篇简历改写，仅在 `gap` 题内给 `remediation`。
 - 题量：8 题，`resume 3 + gap 3 + general 2`，`missing` 多时动态调整。
-- 详细参数与验收标准见 `docs/spec-v2.md` §14。
+- 详细参数与验收标准见 `docs/spec-v3.md` §9～§13。
 
 ### 2026-11-08 参考开源实现后的修订（R1～R5，全部采纳）
 - R1 匹配分改加权公式（45/25/20/10，四项之和等于总分）——避免模型自由给分。
@@ -63,7 +54,7 @@
 - R4 弱点点固定 25 词表，白名单过滤——保证统计可聚合。
 - R5 迷你离线评测集（10 case / 5 指标）——证明 prompt 不退化。
 - 参考来源：OfferPilot（MIT）、agent-interview-coach（MIT）、resume-optimizer（MIT）。
-- spec 定稿于 `docs/spec-v3.md`，`spec-v2.md` 仅留档。
+- spec 定稿于 `docs/spec-v3.md`。
 
 ## 待定问题
 
