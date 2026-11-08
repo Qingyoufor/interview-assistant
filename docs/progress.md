@@ -25,7 +25,7 @@
 |---|---|---|---|
 | S0 | 数据模型 v3（5 表） | ✅ | `db/schema.sql`，`SHOW CREATE TABLE` |
 | S1 | 简历解析 + 证据锚点 | 🟡 | 12 锚点、quoteExact 全 true；真实简历未验 |
-| S2 | JD 解析 + 锚点（含 xunit 测试项目） | ⬜ | — |
+| S2 | JD 解析 + 锚点 + xunit 项目 | ✅ | 实测 7 锚点、7/7 原文命中；20 个单元测试；三方审计（测试/CR/静态）通过 |
 | S3 | 加权匹配（45/25/20/10 + hardBlock） | ⬜ | — |
 | S4 | 出题（8 题，带来源与锚点） | ⬜ | — |
 | S5 | 作答 / 策略追问 / 评分 + 声明核验 | ⬜ | — |
@@ -46,14 +46,21 @@
 
 | 项 | 状态 | 说明 |
 |---|---|---|
-| xunit 测试项目 | ⬜ | 排在 S2 一起做 |
-| Roslyn 零 warning | ✅ | 当前 `dotnet build` 0 警告 |
-| `dotnet format` 校验 | ⬜ | 尚未接入 |
+| xunit 测试项目 | ✅ | 20 个用例，`pwsh scripts/test.ps1` |
+| Roslyn 零 warning | ✅ | `dotnet build --no-incremental -warnaserror` = 0/0 |
+| `dotnet format` 校验 | ✅ | Api 与 Tests 均通过 |
 | 评测集 5 指标 | ⬜ | 排在 S8 |
+
+## 已知取舍
+
+- **不引 `Microsoft.AspNetCore.Mvc.Testing` + EF InMemory**：控制器是薄壳，核心逻辑（校验、锚点、解析）已抽成纯函数并有单测，为 4 张表加测试宿主收益低于成本。故 Controller 的 502/取消分支目前只有手工验证。
+- **`dotnet test` 不可用**：.NET 10 的 VSTest 入口已废弃，本机 testhost 还会因父进程句柄被拒崩溃。统一走 `pwsh scripts/test.ps1`（xunit v3 in-proc runner）。
+- **锚点 `QuoteExact=false` 不丢弃**：JD 提示词已要求逐字复制（实测 7/7 命中），但服务端仍保留兜底。**S4 出题时必须只接受 `QuoteExact=true` 的 JD 锚点**，否则 gap 题会引用不存在的原文。
+- **脱敏尚未实现**（spec §13）：调模型前应把姓名/手机号/邮箱/身份证替换掉，排在 S8 之前补，并加 `privacyMarkerHits` 用例。
 
 ## 怎么用
 
 1. **一眼看整体**：状态列。
 2. **看证据**：`git log --oneline`，一个切片一个提交；表里说完成、日志里找不到对应提交，就是没做完。
-3. **看质量**：`dotnet build`（零 warning）、`dotnet test`（有测试后）、`evals/report.json`（S8 后）。
+3. **看质量**：`pwsh scripts/test.ps1`、`dotnet build --no-incremental -warnaserror`、`dotnet format --verify-no-changes`。
 4. 只有 `docs/spec-v3.md` §15 的 6 条验收全部通过，项目才算完成——这张表是过程，不是终点。
