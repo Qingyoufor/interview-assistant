@@ -1,0 +1,53 @@
+# ---- 依赖与构建产物 ----
+node_modules/
+dist/
+bin/
+obj/
+.vs/
+*.user
+*.suo
+
+# ---- 密钥与本地配置（绝不入库）----
+appsettings.Development.json
+appsettings.*.local.json
+.env
+.env.*
+!.env.example
+secrets.json
+
+# ---- 本地数据与日志 ----
+logs/
+*.log
+*.pid
+*.db
+*.sqlite
+*.sqlite3
+
+# ---- 媒体文件：硬规则，不进 Git ----
+# 需要图标请用图标库或内联 SVG（写在代码里）；演示素材放本地，分享用外链。
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.bmp
+*.ico
+*.svg
+*.mp4
+*.mov
+*.avi
+*.webm
+*.mp3
+*.wav
+*.m4a
+*.ogg
+*.ttf
+*.otf
+*.woff
+*.woff2
+*.psd
+*.ai
+*.zip
+*.7z
+*.onnx
+*.gguf
