@@ -1,14 +1,26 @@
-using Microsoft.EntityFrameworkCore;
 using InterviewAssistant.Api.Data;
+using InterviewAssistant.Api.Services;
+using InterviewAssistant.Api.Services.Llm;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddOpenApi();
-
-var conn = builder.Configuration.GetConnectionString("Qy")
-           ?? throw new InvalidOperationException("缺少连接串 ConnectionStrings:Qy");
+var conn = builder.Configuration.GetConnectionString("InterviewAssistant")
+           ?? throw new InvalidOperationException("缺少连接串 ConnectionStrings:InterviewAssistant");
 builder.Services.AddDbContext<AppDbContext>(o =>
     o.UseMySql(conn, new MySqlServerVersion(new Version(8, 0, 46))));
+
+var baseUrl = builder.Configuration["DeepSeek:BaseUrl"] ?? "https://api.deepseek.com";
+builder.Services.AddHttpClient<DeepSeekClient>(c =>
+{
+    c.BaseAddress = new Uri(baseUrl.TrimEnd('/') + "/");
+    c.Timeout = TimeSpan.FromSeconds(90);
+});
+builder.Services.AddScoped<ResumeParser>();
+
+builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
 builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
     p.WithOrigins("http://localhost:5173", "http://127.0.0.1:5173")
@@ -19,24 +31,15 @@ var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Interview Assistant API v1");
+        c.DocumentTitle = "Interview Assistant API";
+    });
 }
 
 app.UseCors();
-
-app.MapGet("/health", async (AppDbContext db) =>
-{
-    try
-    {
-        var ok = await db.Database.CanConnectAsync();
-        return ok
-            ? Results.Ok(new { status = "ok", db = "up" })
-            : Results.Problem("数据库连不上");
-    }
-    catch (Exception ex)
-    {
-        return Results.Problem(ex.Message);
-    }
-});
+app.MapControllers();
 
 app.Run();
