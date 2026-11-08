@@ -47,9 +47,10 @@
 
 | 项 | 状态 | 说明 |
 |---|---|---|
-| xunit 测试项目 | ✅ | 120 个用例，`pwsh scripts/test.ps1` |
+| xunit 测试项目 | ✅ | 139 个用例，`pwsh scripts/test.ps1` |
 | Roslyn 零 warning | ✅ | `dotnet build --no-incremental -warnaserror` = 0/0 |
 | `dotnet format` 校验 | ✅ | Api 与 Tests 均通过 |
+| 脱敏（spec §13） | ✅ | `Redactor` 挂在 `DeepSeekClient` 唯一出口，6 个调用点全覆盖；假 handler 抓请求体断言无手机号/邮箱/身份证/姓名；18 个规则用例 |
 | 评测集 5 指标 | ⬜ | 排在 S8 |
 
 ## 已知取舍
@@ -66,7 +67,9 @@
 - **弱点统计含未完成场次**：`GET /api/stats/weakness` 按「已评估的题」聚合，所以没答完的场次也计入；接口里的 `sessions` 数与只对 completed 生成的报告总数对不齐。要看齐需 `JOIN sessions.status='completed'`，属产品口径调整。
 - **统计是两条全表扫 + 内存 join**：单机单用户、数据量小可接受；量大再下推成 SQL `GROUP BY tag`。
 - **脏 `assessment_json` 被静默跳过**：`SessionMapper.ParseAssessment` 捕获 `JsonException` 返回 null，不写日志，该题不计入统计；正常写入是强类型序列化 + JSON 列，脏行只可能来自手工改库或 schema 漂移。代价是问题不会被发现，收益是统计页不会整页 500。
-- **脱敏尚未实现**（spec §13）：调模型前应把姓名/手机号/邮箱/身份证替换掉，排在 S8 之前补，并加 `privacyMarkerHits` 用例。
+- **姓名脱敏是正则，不是 NER**：只认「姓名：」「行首 名字/Name:」「我叫」「张三，男」「张三 | 女」这几种写法；简历里裸写的姓名（无标注、不在首行）会漏。反方向刻意收紧：`Project Name:` / `Company Name:` 里的 `Name` 不替换，否则项目名、公司名会被抹掉，解析与锚点全坏。
+- **脱敏只做 userContent**：system prompt 是 `Services/Prompts/*.md` 静态文件，没有用户数据插值，所以不脱敏。
+- **「删除全部数据」接口未实现**（spec §13 最后一条）：排在 F 页 / 上线前，和前端一起做。
 
 ## 怎么用
 

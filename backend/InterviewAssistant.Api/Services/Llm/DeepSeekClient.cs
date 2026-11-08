@@ -13,6 +13,9 @@ public sealed class DeepSeekClient(HttpClient http, IConfiguration cfg, ILogger<
         if (string.IsNullOrWhiteSpace(key))
             throw new InvalidOperationException("未配置 DeepSeek:ApiKey（appsettings.Development.json 或环境变量 DEEPSEEK_API_KEY）");
 
+        // 唯一出口：简历、JD、回答都从这里进模型，脱敏放在这一处，避免各调用点漏做（spec §13）
+        userContent = Redactor.Redact(userContent);
+
         var payload = new
         {
             model = cfg["DeepSeek:Model"] ?? "deepseek-chat",
