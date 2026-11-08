@@ -1,0 +1,96 @@
+{
+  "generatedAt": "2026-11-08 19:24:36 +08:00",
+  "cases": [
+    {
+      "id": "j1-knowledge",
+      "questions": 8,
+      "gapQuestions": 1,
+      "calls": 8,
+      "repairs": 0,
+      "privacyHits": 0
+    },
+    {
+      "id": "j2-project",
+      "questions": 8,
+      "gapQuestions": 0,
+      "calls": 8,
+      "repairs": 0,
+      "privacyHits": 0
+    },
+    {
+      "id": "m1-knowledge",
+      "questions": 8,
+      "gapQuestions": 1,
+      "calls": 8,
+      "repairs": 0,
+      "privacyHits": 0
+    },
+    {
+      "id": "m2-project",
+      "questions": 8,
+      "gapQuestions": 2,
+      "calls": 8,
+      "repairs": 0,
+      "privacyHits": 0
+    },
+    {
+      "id": "m3-knowledge",
+      "questions": 8,
+      "gapQuestions": 0,
+      "calls": 8,
+      "repairs": 0,
+      "privacyHits": 0
+    },
+    {
+      "id": "s1-knowledge",
+      "questions": 8,
+      "gapQuestions": 1,
+      "calls": 8,
+      "repairs": 0,
+      "privacyHits": 0
+    },
+    {
+      "id": "s2-project",
+      "questions": 8,
+      "gapQuestions": 0,
+      "calls": 8,
+      "repairs": 0,
+      "privacyHits": 0
+    },
+    {
+      "id": "s3-project",
+      "questions": 8,
+      "gapQuestions": 2,
+      "calls": 8,
+      "repairs": 0,
+      "privacyHits": 0
+    },
+    {
+      "id": "m4-project",
+      "questions": 8,
+      "gapQuestions": 2,
+      "calls": 8,
+      "repairs": 0,
+      "privacyHits": 0
+    },
+    {
+      "id": "s4-knowledge",
+      "questions": 8,
+      "gapQuestions": 1,
+      "calls": 8,
+      "repairs": 0,
+      "privacyHits": 0
+    }
+  ],
+  "metrics": {
+    "duplicateQuestionRate": 0,
+    "evidenceValidityRate": 1,
+    "gapCitationRate": 1,
+    "privacyMarkerHits": 0,
+    "jsonRepairRate": 0,
+    "gapQuestions": 10
+  },
+  "failedCases": [],
+  "failures": [],
+  "passed": true
+}

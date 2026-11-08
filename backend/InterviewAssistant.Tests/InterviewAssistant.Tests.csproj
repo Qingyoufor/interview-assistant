@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\InterviewAssistant.Api\InterviewAssistant.Api.csproj" />
+    <ProjectReference Include="..\Qy.Eval\Qy.Eval.csproj" />
     <!-- 测试要构造 DeepSeekClient（IConfiguration / ILogger），直接用共享框架 -->
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>

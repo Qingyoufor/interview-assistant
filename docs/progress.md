@@ -32,7 +32,7 @@
 | S5 | 作答 / 策略追问 / 评分 + 声明核验 | ✅ | 实测追问→推进、重复提交 409、展示分/弱点/声明核验落库；97 个单元测试 |
 | S6 | 报告（四维 + topRisks + 待补证据） | ✅ | `GET /report` 只读且要求已完成（半场返回 409）、`POST /complete` 才写回 `overall_score`/`summary`；实测总分 29、拆分 33+20+17+8=78；105 个单元测试 |
 | S7 | 弱点点统计 | ✅ | `GET /api/stats/weakness` 实测 11 道已评估题 / 4 场：技术深度 10 次(4 场)、量化结果 9 次(4 场)，与 SQL 直算逐条一致；25 标签恒定返回、缺数据补 0；四维均分与 `AVG(score)` 一致；插一行脏 `assessment_json` 后接口仍 200 且数字不变；120 个单元测试 |
-| S8 | 离线评测集（5 指标） | ⬜ | — |
+| S8 | 离线评测集（5 指标） | ✅ | `backend/Qy.Eval` 全量 10 case / 80 题 / 80 次调用：duplicate 0、evidence 1.0、gap 1.0（10 道缺口题）、privacy 0、repair 0，`evals/report.json` `passed=true`；首轮 5/10 失败暴露的两处 prompt 缺陷已修（bonus 分类、JD 锚点当声明证据） |
 
 ## 前端切片
 
@@ -47,11 +47,11 @@
 
 | 项 | 状态 | 说明 |
 |---|---|---|
-| xunit 测试项目 | ✅ | 139 个用例，`pwsh scripts/test.ps1` |
+| xunit 测试项目 | ✅ | 151 个用例，`pwsh scripts/test.ps1` |
 | Roslyn 零 warning | ✅ | `dotnet build --no-incremental -warnaserror` = 0/0 |
-| `dotnet format` 校验 | ✅ | Api 与 Tests 均通过 |
+| `dotnet format` 校验 | ✅ | Api、Tests、Qy.Eval 三项目均通过 |
 | 脱敏（spec §13） | ✅ | `Redactor` 挂在 `DeepSeekClient` 唯一出口，6 个调用点全覆盖；假 handler 抓请求体断言无手机号/邮箱/身份证/姓名；18 个规则用例 |
-| 评测集 5 指标 | ⬜ | 排在 S8 |
+| 评测集 5 指标 | ✅ | 10 case / 2 answers，`evals/report.json` 五项全绿 |
 
 ## 已知取舍
 
@@ -69,6 +69,9 @@
 - **脏 `assessment_json` 被静默跳过**：`SessionMapper.ParseAssessment` 捕获 `JsonException` 返回 null，不写日志，该题不计入统计；正常写入是强类型序列化 + JSON 列，脏行只可能来自手工改库或 schema 漂移。代价是问题不会被发现，收益是统计页不会整页 500。
 - **姓名脱敏是正则，不是 NER**：只认「姓名：」「行首 名字/Name:」「我叫」「张三，男」「张三 | 女」这几种写法；简历里裸写的姓名（无标注、不在首行）会漏。反方向刻意收紧：`Project Name:` / `Company Name:` 里的 `Name` 不替换，否则项目名、公司名会被抹掉，解析与锚点全坏。
 - **脱敏只做 userContent**：system prompt 是 `Services/Prompts/*.md` 静态文件，没有用户数据插值，所以不脱敏。
+- **评测里两项指标偏弱**：`evidenceValidityRate` / `gapCitationRate` 统计的是校验器把关**之后**的结果，成功 case 上恒为 1，只能证明「校验链路还在」；真正对 prompt 退化敏感的是 `duplicateQuestionRate` 和 `jsonRepairRate`。首轮评测正是靠 case 失败（不是指标越界）抓到 bonus 分类和 JD 锚点当证据两个缺陷。
+- **评测是抽样**：每个 case 只抽 2 道题作答评估（80 道题里评 20 道），`--answers 8` 可全覆盖，成本约翻 4 倍。
+- **模型偶发不合规仍会发生**：prompt 硬化后本轮 10/10 通过、repair 0 次，但模型仍可能漏 items 或用错锚点；出现时该 case 计入 `report.json` 的 `failedCases`、`passed=false`，重跑不代表修复。
 - **「删除全部数据」接口未实现**（spec §13 最后一条）：排在 F 页 / 上线前，和前端一起做。
 
 ## 怎么用
