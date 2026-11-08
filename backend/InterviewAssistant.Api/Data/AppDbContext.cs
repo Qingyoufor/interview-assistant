@@ -66,7 +66,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.MatchId).HasColumnName("match_id").HasMaxLength(36);
             e.Property(x => x.UserId).HasColumnName("user_id").HasMaxLength(64);
             e.Property(x => x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(16);
-            e.Property(x => x.OverallScore).HasColumnName("overall_score").HasColumnType("decimal(3,2)");
+            e.Property(x => x.OverallScore).HasColumnName("overall_score");
             e.Property(x => x.Summary).HasColumnName("summary").HasColumnType("text");
             e.Property(x => x.StartedAt).HasColumnName("started_at").HasColumnType("datetime(3)");
             e.Property(x => x.CompletedAt).HasColumnName("completed_at").HasColumnType("datetime(3)");

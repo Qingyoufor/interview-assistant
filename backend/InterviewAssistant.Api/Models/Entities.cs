@@ -49,7 +49,7 @@ public class Session
     public Guid? MatchId { get; set; }
     public string UserId { get; set; } = "local";
     public SessionStatus Status { get; set; } = SessionStatus.active;
-    public decimal? OverallScore { get; set; }
+    public byte? OverallScore { get; set; }
     public string? Summary { get; set; }
     public DateTime StartedAt { get; set; }
     public DateTime? CompletedAt { get; set; }

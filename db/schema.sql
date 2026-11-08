@@ -58,7 +58,7 @@ CREATE TABLE sessions (
   match_id       CHAR(36)     NULL,
   user_id        VARCHAR(64)  NOT NULL DEFAULT 'local',
   status         ENUM('active','completed','abandoned') NOT NULL DEFAULT 'active',
-  overall_score  DECIMAL(3,2) NULL,
+  overall_score  TINYINT      NULL,        -- 0-100
   summary        TEXT         NULL,
   started_at     DATETIME(3)  NOT NULL,
   completed_at   DATETIME(3)  NULL,
