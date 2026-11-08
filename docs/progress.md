@@ -28,7 +28,7 @@
 | S1 | 简历解析 + 证据锚点 | 🟡 | 12 锚点、quoteExact 全 true；真实简历未验 |
 | S2 | JD 解析 + 锚点 + xunit 项目 | ✅ | 实测 7 锚点、7/7 原文命中；20 个单元测试；三方审计（测试/CR/静态）通过 |
 | S3 | 加权匹配（45/25/20/10 + hardBlock） | ✅ | 实测 overall=78、hardBlock=False、6 条 items 分类正确；四项和=总分；缓存命中与 refresh 绕过均验证；42 个单元测试 |
-| S4 | 出题（8 题，带来源与锚点） | ⬜ | — |
+| S4 | 出题（8 题，带来源与锚点） | ✅ | 实测 8 题按 plan 分配（5/1/2，随可出缺口数自适应）；gap 题只引用 missing 且原文命中的锚点；68 个单元测试 |
 | S5 | 作答 / 策略追问 / 评分 + 声明核验 | ⬜ | — |
 | S6 | 报告（四维 + topRisks） | ⬜ | — |
 | S7 | 弱点点统计 | ⬜ | — |
@@ -57,7 +57,8 @@
 - **不引 `Microsoft.AspNetCore.Mvc.Testing` + EF InMemory**：控制器是薄壳，核心逻辑（校验、锚点、解析）已抽成纯函数并有单测，为 4 张表加测试宿主收益低于成本。故 Controller 的 502/取消分支目前只有手工验证。
 - **`dotnet test` 不可用**：.NET 10 的 VSTest 入口已废弃，本机 testhost 还会因父进程句柄被拒崩溃。统一走 `pwsh scripts/test.ps1`（xunit v3 in-proc runner）。
 - **锚点 `QuoteExact=false` 不丢弃**：JD 提示词已要求逐字复制（实测 7/7 命中），但服务端仍保留兜底。**S4 出题时必须只接受 `QuoteExact=true` 的 JD 锚点**，否则 gap 题会引用不存在的原文。
-- **repair 路径无自动化测试**：`MatchService` 的「首轮非法 → repair 成功 → repairs=1」「两轮非法 → 抛异常」只有手工验证，要测需注入假 HTTP handler 并给测试项目铺 prompt 文件，成本高于收益，暂缓。
+- **repair 路径无自动化测试**：`MatchService` / `QuestionGenerator` 的「首轮非法 → repair 成功」「两轮非法 → 抛异常」只有手工验证，要测需注入假 HTTP handler 并给测试项目铺 prompt 文件，成本高于收益，暂缓。
+- **Controller 分支无测试**：`MatchesController` / `SessionsController` 的 404、502、缓存命中、落库顺序均只有手工验证；核心逻辑已抽成纯函数（planner / validator / store），控制器保持薄壳。
 - **匹配缓存只按输入指纹失效**：不做 TTL；简历/JD 重新解析后指纹变化会自动重算，refresh=true 可强制重算。旧行不删除，每次重算新增一行（量小，可接受）。
 - **脱敏尚未实现**（spec §13）：调模型前应把姓名/手机号/邮箱/身份证替换掉，排在 S8 之前补，并加 `privacyMarkerHits` 用例。
 

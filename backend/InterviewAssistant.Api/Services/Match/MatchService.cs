@@ -60,9 +60,9 @@ public sealed class MatchService(DeepSeekClient llm, IHostEnvironment env, ILogg
             problems
         }, LlmJson.Options);
 
-        // JSON 字符串里的 \/ 是合法转义，替换后仍是合法 JSON，但标签不会被识别
-        json = json.Replace("</match_input>", "<\\/match_input>", StringComparison.Ordinal)
-                   .Replace("<match_input>", "<\\/match_input>", StringComparison.Ordinal);
+        // 把尖括号转成 Unicode 转义：材料里出现 </match_input> 也无法闭合边界（CR-004）
+        json = json.Replace("<", "\\u003C", StringComparison.Ordinal)
+                   .Replace(">", "\\u003E", StringComparison.Ordinal);
 
         return "<match_input>\n" + json + "\n</match_input>";
     }

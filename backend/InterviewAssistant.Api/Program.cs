@@ -19,6 +19,8 @@ builder.Services.AddHttpClient<DeepSeekClient>(c =>
 builder.Services.AddScoped<ResumeParser>();
 builder.Services.AddScoped<JdParser>();
 builder.Services.AddScoped<InterviewAssistant.Api.Services.Match.MatchService>();
+builder.Services.AddScoped<InterviewAssistant.Api.Services.Match.MatchStore>();
+builder.Services.AddScoped<InterviewAssistant.Api.Services.Questions.QuestionGenerator>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
