@@ -26,21 +26,37 @@ public class JobTarget
     public DateTime CreatedAt { get; set; }
 }
 
+public class Match
+{
+    public Guid Id { get; set; }
+    public Guid ResumeId { get; set; }
+    public Guid JobTargetId { get; set; }
+    public string InputHash { get; set; } = string.Empty;
+    public byte OverallMatch { get; set; }
+    public bool HardBlock { get; set; }
+    public string ResultJson { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+
+    public Resume? Resume { get; set; }
+    public JobTarget? JobTarget { get; set; }
+}
+
 public class Session
 {
     public Guid Id { get; set; }
     public Guid JobTargetId { get; set; }
     public Guid? ResumeId { get; set; }
+    public Guid? MatchId { get; set; }
     public string UserId { get; set; } = "local";
     public SessionStatus Status { get; set; } = SessionStatus.active;
     public decimal? OverallScore { get; set; }
-    public string? MatchJson { get; set; }
     public string? Summary { get; set; }
     public DateTime StartedAt { get; set; }
     public DateTime? CompletedAt { get; set; }
 
     public JobTarget? JobTarget { get; set; }
     public Resume? Resume { get; set; }
+    public Match? Match { get; set; }
     public List<Question> Questions { get; set; } = new();
 }
 

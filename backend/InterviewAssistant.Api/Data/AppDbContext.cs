@@ -7,6 +7,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 {
     public DbSet<Resume> Resumes => Set<Resume>();
     public DbSet<JobTarget> JobTargets => Set<JobTarget>();
+    public DbSet<Match> Matches => Set<Match>();
     public DbSet<Session> Sessions => Set<Session>();
     public DbSet<Question> Questions => Set<Question>();
     public DbSet<QuestionScore> QuestionScores => Set<QuestionScore>();
@@ -38,6 +39,23 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.CreatedAt).HasColumnName("created_at").HasColumnType("datetime(3)");
         });
 
+        b.Entity<Match>(e =>
+        {
+            e.ToTable("matches");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasMaxLength(36);
+            e.Property(x => x.ResumeId).HasColumnName("resume_id").HasMaxLength(36);
+            e.Property(x => x.JobTargetId).HasColumnName("job_target_id").HasMaxLength(36);
+            e.Property(x => x.InputHash).HasColumnName("input_hash").HasMaxLength(64);
+            e.Property(x => x.OverallMatch).HasColumnName("overall_match");
+            e.Property(x => x.HardBlock).HasColumnName("hard_block");
+            e.Property(x => x.ResultJson).HasColumnName("result_json").HasColumnType("json");
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasColumnType("datetime(3)");
+            e.HasOne(x => x.Resume).WithMany().HasForeignKey(x => x.ResumeId);
+            e.HasOne(x => x.JobTarget).WithMany().HasForeignKey(x => x.JobTargetId);
+            e.HasIndex(x => new { x.ResumeId, x.JobTargetId, x.CreatedAt });
+        });
+
         b.Entity<Session>(e =>
         {
             e.ToTable("sessions");
@@ -45,15 +63,16 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.Id).HasColumnName("id").HasMaxLength(36);
             e.Property(x => x.JobTargetId).HasColumnName("job_target_id").HasMaxLength(36);
             e.Property(x => x.ResumeId).HasColumnName("resume_id").HasMaxLength(36);
+            e.Property(x => x.MatchId).HasColumnName("match_id").HasMaxLength(36);
             e.Property(x => x.UserId).HasColumnName("user_id").HasMaxLength(64);
             e.Property(x => x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(16);
             e.Property(x => x.OverallScore).HasColumnName("overall_score").HasColumnType("decimal(3,2)");
-            e.Property(x => x.MatchJson).HasColumnName("match_json").HasColumnType("json");
             e.Property(x => x.Summary).HasColumnName("summary").HasColumnType("text");
             e.Property(x => x.StartedAt).HasColumnName("started_at").HasColumnType("datetime(3)");
             e.Property(x => x.CompletedAt).HasColumnName("completed_at").HasColumnType("datetime(3)");
             e.HasOne(x => x.JobTarget).WithMany().HasForeignKey(x => x.JobTargetId);
             e.HasOne(x => x.Resume).WithMany().HasForeignKey(x => x.ResumeId);
+            e.HasOne(x => x.Match).WithMany().HasForeignKey(x => x.MatchId);
         });
 
         b.Entity<Question>(e =>
