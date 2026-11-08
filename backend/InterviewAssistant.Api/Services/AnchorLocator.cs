@@ -112,5 +112,5 @@ public static class AnchorLocator
 
     private static bool IsWordChar(char c) => char.IsAsciiLetterOrDigit(c) || c == '_';
 
-    public static string Head(string s, int n) => string.IsNullOrEmpty(s) || n <= 0 ? "" : (s.Length <= n ? s : s[..n]);
+    private static string Head(string s, int n) => string.IsNullOrEmpty(s) || n <= 0 ? "" : (s.Length <= n ? s : s[..n]);
 }

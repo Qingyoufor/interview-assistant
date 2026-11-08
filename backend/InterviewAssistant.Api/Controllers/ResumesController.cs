@@ -19,10 +19,6 @@ public sealed record ResumeListItem(Guid Id, string Title, DateTime CreatedAt);
 [Produces("application/json")]
 public class ResumesController(AppDbContext db, ResumeParser parser, ILogger<ResumesController> log) : ControllerBase
 {
-    private const int MinChars = 50;
-    private const int MaxChars = 12000;
-    private const int TitleMaxLength = 120;
-
     /// <summary>录入并解析一份简历，返回候选人画像与证据锚点。</summary>
     [HttpPost]
     [ProducesResponseType(typeof(ResumeParseResponse), StatusCodes.Status200OK)]
@@ -30,7 +26,7 @@ public class ResumesController(AppDbContext db, ResumeParser parser, ILogger<Res
     [ProducesResponseType(StatusCodes.Status502BadGateway)]
     public async Task<IActionResult> Create([FromBody] CreateResumeRequest req, CancellationToken ct)
     {
-        var guard = InputGuard.Prepare(req.RawText, MinChars, MaxChars, "简历内容");
+        var guard = InputGuard.Prepare(req.RawText, InputGuard.MinChars, InputGuard.MaxChars, "简历内容");
         if (!guard.Ok)
             return BadRequest(new { error = guard.Error });
 
@@ -58,7 +54,7 @@ public class ResumesController(AppDbContext db, ResumeParser parser, ILogger<Res
         var entity = new Resume
         {
             Id = Guid.NewGuid(),
-            Title = InputGuard.Clamp(rawTitle, TitleMaxLength),
+            Title = InputGuard.Clamp(rawTitle, InputGuard.TitleMaxLength),
             RawText = text,
             ParsedJson = JsonSerializer.Serialize(new { profile = result.Profile, anchors = result.Anchors }, LlmJson.Options),
             CreatedAt = DateTime.UtcNow

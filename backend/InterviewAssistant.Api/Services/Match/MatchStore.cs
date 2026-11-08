@@ -24,7 +24,7 @@ public sealed class MatchStore(AppDbContext db, MatchService service, ILogger<Ma
                 .FirstOrDefaultAsync(ct);
 
             if (cached is not null && cached.InputHash == hash)
-                return new MatchEntry(cached, Deserialize(cached.ResultJson), Cached: true);
+                return new MatchEntry(cached, MatchResults.Read(cached.ResultJson), Cached: true);
         }
 
         var (resumeProfile, resumeAnchors) = StoredParsed.ReadResume(resume.ParsedJson);
@@ -50,12 +50,5 @@ public sealed class MatchStore(AppDbContext db, MatchService service, ILogger<Ma
             entity.OverallMatch, entity.HardBlock, outcome.Repairs);
 
         return new MatchEntry(entity, outcome.Result, Cached: false);
-    }
-
-    private static MatchResult Deserialize(string json)
-    {
-        var result = JsonSerializer.Deserialize<MatchResult>(json, LlmJson.Options) ?? new MatchResult();
-        result.Normalize();
-        return result;
     }
 }

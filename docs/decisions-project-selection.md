@@ -61,6 +61,13 @@
 - 理由：`questions` 表只有一个 `FollowUp` 字段，允许二次追问会出现「说要追问但没有追问文本」的状态；扩表不值得。
 - 影响：spec §6 已同步；解答 S5 审计 TEST-002。
 
+### 2026-11-08 项目整理（tidy）
+- 拆分 `SessionsController`（452 行）为 Sessions / Answers / Reports 三个控制器 + `SessionMapper`。
+- 录入上限常量收到 `InputGuard`；`MatchResult` 反序列化收到 `MatchResults.Read`（顺带统一 `Normalize()`）。
+- 三个只在内部使用的公开成员收为 `private`。
+- 装 `.githooks/pre-commit`：单文件 > 20 KB 拒绝提交，lockfile 与构建产物跳过。
+- 判据：行为不变，105 个测试全绿，11 条路由与拆分前一致。
+
 ## 待定问题
 
 - 无。产品、技术、验收参数全部闭合，grill 结束。

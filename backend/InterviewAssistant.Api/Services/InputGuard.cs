@@ -3,6 +3,12 @@ namespace InterviewAssistant.Api.Services;
 /// <summary>录入文本的统一校验与截断，两个 Controller 共用。</summary>
 public static class InputGuard
 {
+    /// <summary>录入文本的通用上限，两个录入接口共用一处。</summary>
+    public const int MinChars = 50;
+    public const int MaxChars = 12000;
+    public const int TitleMaxLength = 120;
+    public const int LevelMaxLength = 32;
+
     public static InputGuardResult Prepare(string? input, int minChars, int maxChars, string label = "内容")
     {
         var text = (input ?? string.Empty).Trim();
@@ -16,7 +22,7 @@ public static class InputGuard
     }
 
     /// <summary>按字符截断，但不切断代理对（emoji）。</summary>
-    public static string SafeTruncate(string text, int maxChars)
+    private static string SafeTruncate(string text, int maxChars)
     {
         if (text.Length <= maxChars) return text;
         var cut = maxChars;

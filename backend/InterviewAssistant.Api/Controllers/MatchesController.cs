@@ -52,7 +52,7 @@ public class MatchesController(AppDbContext db, MatchStore store, ILogger<Matche
         var entity = await db.Matches.AsNoTracking().FirstOrDefaultAsync(m => m.Id == id, ct);
         if (entity is null) return NotFound(new { error = "匹配结果不存在" });
 
-        var result = System.Text.Json.JsonSerializer.Deserialize<MatchResult>(entity.ResultJson, Services.Llm.LlmJson.Options) ?? new MatchResult();
+        var result = MatchResults.Read(entity.ResultJson);
         return Ok(new MatchResponse(entity.Id, entity.ResumeId, entity.JobTargetId, true, result, entity.CreatedAt));
     }
 

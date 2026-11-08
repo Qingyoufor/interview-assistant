@@ -19,11 +19,6 @@ public sealed record JobTargetListItem(Guid Id, string Title, string? Level, Dat
 [Produces("application/json")]
 public class JobTargetsController(AppDbContext db, JdParser parser, ILogger<JobTargetsController> log) : ControllerBase
 {
-    private const int MinChars = 50;
-    private const int MaxChars = 12000;
-    private const int TitleMaxLength = 120;
-    private const int LevelMaxLength = 32;
-
     /// <summary>录入并解析一份岗位 JD，返回结构化要求与证据锚点。</summary>
     [HttpPost]
     [ProducesResponseType(typeof(JobTargetResponse), StatusCodes.Status200OK)]
@@ -31,7 +26,7 @@ public class JobTargetsController(AppDbContext db, JdParser parser, ILogger<JobT
     [ProducesResponseType(StatusCodes.Status502BadGateway)]
     public async Task<IActionResult> Create([FromBody] CreateJobTargetRequest req, CancellationToken ct)
     {
-        var guard = InputGuard.Prepare(req.JdText, MinChars, MaxChars, "JD 内容");
+        var guard = InputGuard.Prepare(req.JdText, InputGuard.MinChars, InputGuard.MaxChars, "JD 内容");
         if (!guard.Ok)
             return BadRequest(new { error = guard.Error });
 
@@ -57,8 +52,8 @@ public class JobTargetsController(AppDbContext db, JdParser parser, ILogger<JobT
         var entity = new JobTarget
         {
             Id = Guid.NewGuid(),
-            Title = InputGuard.Clamp(rawTitle, TitleMaxLength),
-            Level = string.IsNullOrWhiteSpace(result.Profile.Level) ? null : InputGuard.Clamp(result.Profile.Level, LevelMaxLength),
+            Title = InputGuard.Clamp(rawTitle, InputGuard.TitleMaxLength),
+            Level = string.IsNullOrWhiteSpace(result.Profile.Level) ? null : InputGuard.Clamp(result.Profile.Level, InputGuard.LevelMaxLength),
             JdText = text,
             ParsedJson = JsonSerializer.Serialize(new { job = result.Profile, anchors = result.Anchors }, LlmJson.Options),
             CreatedAt = DateTime.UtcNow

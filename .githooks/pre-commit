@@ -1,0 +1,27 @@
+#!/bin/sh
+# 提交前检查：单文件超过 20 KB 就拒绝。
+# 理由：agent 每次都只读得动有限的内容，超大文件说明该按功能拆开了。
+limit=20480
+fail=0
+
+for f in $(git diff --cached --name-only --diff-filter=ACM); do
+  case "$f" in
+    *package-lock.json|*pnpm-lock.yaml|*yarn.lock|*.lock) continue ;;
+    *node_modules/*|*/bin/*|*/obj/*|*/dist/*) continue ;;
+    *.min.js|*.min.css) continue ;;
+  esac
+
+  [ -f "$f" ] || continue
+  size=$(wc -c < "$f" 2>/dev/null || echo 0)
+
+  if [ "$size" -gt "$limit" ]; then
+    echo "✗ $f 有 $((size / 1024)) KB，超过 20 KB 上限。请按功能拆成几个文件。" >&2
+    fail=1
+  fi
+done
+
+if [ "$fail" -ne 0 ]; then
+  echo "（阈值 20 KB；lockfile、node_modules、bin/obj、构建产物已跳过）" >&2
+fi
+
+exit $fail

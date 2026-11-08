@@ -13,7 +13,7 @@ public static class WeaknessCatalog
 
     private static readonly HashSet<string> Set = new(All, StringComparer.Ordinal);
 
-    public static bool IsValid(string tag) => Set.Contains(tag);
+    private static bool IsValid(string tag) => Set.Contains(tag);
 
     /// <summary>过滤掉词表外的标签，避免脏数据进统计。</summary>
     public static List<string> Filter(IEnumerable<string> tags) =>
