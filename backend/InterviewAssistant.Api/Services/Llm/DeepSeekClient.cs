@@ -58,6 +58,9 @@ public sealed class DeepSeekClient(HttpClient http, IConfiguration cfg, ILogger<
             }
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
             {
+                // 客户端断开就别重试了：继续等只会拖住请求，重试还会再抛一次取消异常
+                if (ct.IsCancellationRequested) throw;
+
                 last = ex;
                 log.LogWarning("DeepSeek 调用失败（第 {Attempt} 次）：{Message}", attempt + 1, ex.Message);
                 if (attempt < 2) await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, attempt)), ct);

@@ -1,6 +1,5 @@
-using System.Text.Json;
 using InterviewAssistant.Api.Models;
-using InterviewAssistant.Api.Services.Llm;
+using InterviewAssistant.Api.Services.Interview;
 using InterviewAssistant.Api.Services.Match;
 
 namespace InterviewAssistant.Api.Controllers;
@@ -20,7 +19,11 @@ public static class SessionMapper
 
     public static SessionQuestionDto ToDto(Question q) =>
         new(q.Id, q.Ordinal, q.Type.ToString(), q.Source.ToString(), q.Content, q.Intent ?? "",
-            DeserializeIds(q.AnchorIds));
+            DeserializeIds(q.AnchorIds),
+            q.Answer is not null,
+            q.FollowUp,
+            q.FollowUpAnswer is not null,
+            ParseAssessment(q.AssessmentJson));
 
     public static SessionQuestionDto? NextQuestion(Session session, Question current) =>
         session.Questions
@@ -38,25 +41,9 @@ public static class SessionMapper
         session.CompletedAt = DateTime.UtcNow;
     }
 
-    public static List<string> DeserializeIds(string? json) =>
-        string.IsNullOrWhiteSpace(json) ? [] : JsonSerializer.Deserialize<List<string>>(json, LlmJson.Options) ?? [];
+    public static List<string> DeserializeIds(string? json) => AssessmentJson.ReadIds(json);
 
-    public static Assessment? ParseAssessment(string? json)
-    {
-        if (string.IsNullOrWhiteSpace(json)) return null;
-
-        try
-        {
-            var assessment = JsonSerializer.Deserialize<Assessment>(json, LlmJson.Options);
-            assessment?.Normalize();
-            return assessment;
-        }
-        catch (JsonException)
-        {
-            // 手工改库或 schema 漂移留下的脏行，不能让它把整个统计/报告接口打 500
-            return null;
-        }
-    }
+    public static Assessment? ParseAssessment(string? json) => AssessmentJson.Read(json);
 
     public static QuestionType ParseType(string value) =>
         Enum.TryParse<QuestionType>(value, ignoreCase: true, out var parsed) ? parsed : QuestionType.basic;
