@@ -36,12 +36,13 @@
 
 ## 前端切片
 
-| # | 切片 | 状态 |
-|---|---|---|
-| F1 | 资料页（简历/JD 列表与编辑） | ⬜ |
-| F2 | 匹配页（对齐表 + 加权分） | ⬜ |
-| F3 | 练习页（单题流 + 追问 + 评分卡） | ⬜ |
-| F4 | 报告页 | ⬜ |
+| # | 切片 | 状态 | 验收依据 |
+|---|---|---|---|
+| F1 | 资料页（简历/JD 列表与编辑） | ✅ | 粘贴 / PDF（pdfjs 抽文字层）/ 图片（tesseract OCR，`chi_sim+eng`）三种录入 → 解析并保存 → 列表 → 详情（画像/锚点/转述标记）；点列表载入原文可改后再解析；后端补 `GET /api/resumes/{id}`、`GET /api/job-targets/{id}`；headless 实测 PDF 提取 228 字、中文 OCR 提取 166 字 |
+| F2 | 匹配页（对齐表 + 加权分） | ✅ | 选简历/JD → 加权总分 + 四项拆分 + 对齐表（三态着色）+ 硬阻断提示 + topRisks → 开始练习；支持 `?resumeId=&jobTargetId=&auto=1` 深链；实测复用缓存 78 分 |
+| F3 | 练习页（单题流 + 追问 + 评分卡） | ✅ | 进度条、来源/类型徽标、锚点原文折叠、回答→评分卡（四维/弱点/声明核验/改进）→追问→下一题；刷新可续答（`answered/followUp/followUpAnswered/assessment` 进 DTO）；409 会以服务端为准重新对位 |
+| F4 | 报告页 | ✅ | 总分、四维均分、加权拆分、最该补的证据、弱点标签、风险、优点；未答完返回 409 并给「继续练习」出口；「保存到会话记录」调 `POST /complete` |
+| F5 | 历史记录 + 资料删除 | ✅ | `/history` 列出每场面试的岗位/简历/状态/分数/进度，已完成直接看报告、未完成接着答；答完最后一题会自动写回总分（`SessionReportService`），历史里「已完成」的场次都有分；资料页每行可删，被面试引用时提示「N 场面试」并二次确认，`force=true` 连带删除（实测 409 → 204，会话/题目/得分/匹配一并清掉；只有匹配没有面试时直接删） |
 
 ## 质量
 
@@ -52,6 +53,7 @@
 | `dotnet format` 校验 | ✅ | Api、Tests、Qy.Eval 三项目均通过 |
 | 脱敏（spec §13） | ✅ | `Redactor` 挂在 `DeepSeekClient` 唯一出口，6 个调用点全覆盖；假 handler 抓请求体断言无手机号/邮箱/身份证/姓名；18 个规则用例 |
 | 评测集 5 指标 | ✅ | 10 case / 2 answers，`evals/report.json` 五项全绿 |
+| 前端构建 | ✅ | `npm run build`（`vue-tsc` 类型检查 + vite 构建）通过；页面 chunk 最大 129 KB，PDF 相关 444 KB + worker 1.24 MB 只在真正上传 PDF 时懒加载 |
 
 ## 已知取舍
 
@@ -73,6 +75,13 @@
 - **评测是抽样**：每个 case 只抽 2 道题作答评估（80 道题里评 20 道），`--answers 8` 可全覆盖，成本约翻 4 倍。
 - **模型偶发不合规仍会发生**：prompt 硬化后本轮 10/10 通过、repair 0 次，但模型仍可能漏 items 或用错锚点；出现时该 case 计入 `report.json` 的 `failedCases`、`passed=false`，重跑不代表修复。
 - **「删除全部数据」接口未实现**（spec §13 最后一条）：排在 F 页 / 上线前，和前端一起做。
+- **EventLog provider 已关掉**：本机（沙箱）写 Windows 事件日志被拒，任何 Error / Critical 日志都会抛 `Cannot open log for source '.NET Runtime'` 并让进程直接退出。表现是「JD 解析 / 匹配时服务突然挂掉、前端只看到 502」。`appsettings.json` 里把 `Logging:EventLog:LogLevel:Default` 设为 `None`，错误只进控制台；已验证 502 路径和客户端中途取消都不会再杀进程。
+- **客户端断开时不再重试模型调用**：`DeepSeekClient` 在重试前先看 `ct.IsCancellationRequested`，用户刷新/关页面就直接退出，不再等 3 轮退避。
+- **删除资料会连带删除面试记录**：`DELETE /api/resumes/{id}`、`/api/job-targets/{id}` 被引用时返回 409（带会话/匹配条数），`force=true` 才级联删除 sessions/questions/question_scores/matches。没有回收站，删了就没了。
+- **前端没有自动化测试**：只有 `vue-tsc` 类型检查 + headless Edge 截图（data 页 4 张）人工核对；提交、追问、409 重试这些交互仍靠手工验证。
+- **F1 的「编辑」= 载入原文后重新解析**：后端没有更新接口，改完再解析会存成一份新记录，旧记录保留。
+- **前端只做单用户**：没有登录态，`user_id` 固定 `local`，页面之间靠路由参数和 localStorage 里的简历/JD id 串起来。
+- **界面不放图片资源**：仓库规则不允许图片入库，头像/插图一律没有，图标只用文字和 CSS。
 
 ## 怎么用
 
