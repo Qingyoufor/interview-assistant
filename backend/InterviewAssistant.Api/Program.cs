@@ -22,6 +22,7 @@ builder.Services.AddScoped<InterviewAssistant.Api.Services.Match.MatchService>()
 builder.Services.AddScoped<InterviewAssistant.Api.Services.Match.MatchStore>();
 builder.Services.AddScoped<InterviewAssistant.Api.Services.Questions.QuestionGenerator>();
 builder.Services.AddScoped<InterviewAssistant.Api.Services.Interview.InterviewService>();
+builder.Services.AddScoped<InterviewAssistant.Api.Services.Report.SessionReportService>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();

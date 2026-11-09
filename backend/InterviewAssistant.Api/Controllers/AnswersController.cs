@@ -2,6 +2,7 @@ using InterviewAssistant.Api.Data;
 using InterviewAssistant.Api.Models;
 using InterviewAssistant.Api.Services;
 using InterviewAssistant.Api.Services.Interview;
+using InterviewAssistant.Api.Services.Report;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,6 +14,7 @@ namespace InterviewAssistant.Api.Controllers;
 public class AnswersController(
     AppDbContext db,
     InterviewService interview,
+    SessionReportService reporter,
     ILogger<AnswersController> log) : ControllerBase
 {
     private const int MinAnswerChars = 10;
@@ -156,6 +158,20 @@ public class AnswersController(
             await ApplyAssessmentAsync(question, outcome.Assessment, ct);
             SessionMapper.MarkCompleteIfDone(session);
             await db.SaveChangesAsync(ct);
+
+            // 答完最后一题就顺手把总分写回，历史记录里「已完成」的场次才有分
+            if (session.Status == SessionStatus.completed && session.OverallScore is null)
+            {
+                try
+                {
+                    await reporter.CompleteAsync(session, ct);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    log.LogWarning(ex, "自动收尾失败 session={SessionId}", sessionId);
+                }
+            }
+
             return null;
         }
         catch (DbUpdateException ex)

@@ -10,6 +10,17 @@ using Microsoft.EntityFrameworkCore;
 
 namespace InterviewAssistant.Api.Controllers;
 
+public sealed record SessionListItem(
+    Guid Id,
+    string Status,
+    DateTime StartedAt,
+    DateTime? CompletedAt,
+    int? OverallScore,
+    string JobTitle,
+    string ResumeTitle,
+    int QuestionCount,
+    int AnsweredCount);
+
 [ApiController]
 [Route("api/sessions")]
 [Produces("application/json")]
@@ -19,6 +30,44 @@ public class SessionsController(
     QuestionGenerator generator,
     ILogger<SessionsController> log) : ControllerBase
 {
+    /// <summary>历史面试记录（按开始时间倒序），带岗位/简历标题与作答进度。</summary>
+    [HttpGet]
+    [ProducesResponseType(typeof(List<SessionListItem>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> List(CancellationToken ct)
+    {
+        var rows = await db.Sessions.AsNoTracking()
+            .OrderByDescending(s => s.StartedAt)
+            .Select(s => new
+            {
+                s.Id,
+                s.Status,
+                s.StartedAt,
+                s.CompletedAt,
+                s.OverallScore,
+                JobTitle = s.JobTarget!.Title,
+                ResumeTitle = s.Resume != null ? s.Resume.Title : "",
+                QuestionCount = s.Questions.Count,
+                AnsweredCount = s.Questions.Count(q => q.Answer != null)
+            })
+            .ToListAsync(ct);
+
+        return Ok(rows
+            .Select(r => new SessionListItem(
+                r.Id,
+                r.Status.ToString(),
+                AsUtc(r.StartedAt),
+                r.CompletedAt is { } completed ? AsUtc(completed) : null,
+                r.OverallScore,
+                r.JobTitle,
+                r.ResumeTitle,
+                r.QuestionCount,
+                r.AnsweredCount))
+            .ToList());
+    }
+
+    /// <summary>MySQL 读回来的时间没有 Kind，序列化不带 Z；统一标成 UTC，前端按本地时区显示。</summary>
+    private static DateTime AsUtc(DateTime value) => DateTime.SpecifyKind(value, DateTimeKind.Utc);
+
     /// <summary>开始一场练习：复用或计算匹配结果，再按配比生成 8 道带证据锚点的题。</summary>
     [HttpPost]
     [ProducesResponseType(typeof(SessionResponse), StatusCodes.Status200OK)]
