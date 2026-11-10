@@ -6,6 +6,8 @@ obj/
 .vs/
 *.user
 *.suo
+TestResults/
+.tmp-*/
 
 # ---- 密钥与本地配置（绝不入库）----
 appsettings.Development.json
